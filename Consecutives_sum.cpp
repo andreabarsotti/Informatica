@@ -80,6 +80,13 @@ int main(){
             }
         }
     }
+    /*Given the fact that once you have the segment with the maximum sum, 
+    you can't expand it anymore, and that every subsegment of that segment will have a >0 sum
+    (because if it had a negative sum, you could remove it and get a bigger sum),
+    you can create a O(n) algorithm that finds the maximum sum of consecutive elements in a single pass through the array.
+    Basically you start from the beginning of the array, and keep adding elements to the current sum (keeping track of the max). 
+    If the current sum becomes negative, you reset it to 0 and start a new segment from the next element.
+    */
     cout << "Maximum sum of " << n_max << " consecutive elements, starting at index " << starting_index << ": " << max << endl;
     return 0;
 }
