@@ -29,7 +29,6 @@ int main(){
     for (int i = 0; i < a.size(); i++){
         a[i] = rand() % 100 - 50; // random number between -50 and 49
     }
-    a = {-50, 33, 45, -99, 12, 14, 16, 76, -99, -99}; //array for testing
     cout << "Starting array: " << endl;
     for (int i = 0; i < a.size(); i++) {
         cout << a[i] << " ";
