@@ -6,7 +6,8 @@
 This creates a random array of 10 elements between -50 and 49, 
 then finds the maximum sum of n consecutive elements, varying n */
 using namespace std;
-
+//function only used in version 1
+/*
 int sum(const vector<int>& v, int number, int start) {
     int total = 0;
     int cap;
@@ -20,7 +21,7 @@ int sum(const vector<int>& v, int number, int start) {
         total += v[i];
     }
     return total;
-}
+}*/
 
 int main(){
     srand(time(0)); // seed the random number generator
@@ -28,6 +29,7 @@ int main(){
     for (int i = 0; i < a.size(); i++){
         a[i] = rand() % 100 - 50; // random number between -50 and 49
     }
+    a = {-50, 33, 45, -99, 12, 14, 16, 76, -99, -99}; //array for testing
     cout << "Starting array: " << endl;
     for (int i = 0; i < a.size(); i++) {
         cout << a[i] << " ";
@@ -36,9 +38,10 @@ int main(){
 
     int n;
     int max;
-    int n_max;
-    int current_sum;
+    int n_max = 0;
+    int current_sum =0;
     int starting_index;
+    int max_start_index;
     /*// Version 1
     for (int i = 0; i < a.size(); i++) {
         for (n = 0; n <= a.size(); n++) {
@@ -56,6 +59,7 @@ int main(){
         }
     }
     */
+   /*
     //Version 2
     for (int i = 0; i < a.size(); i++) {
         for (n = i; n < a.size(); n++) {
@@ -79,7 +83,27 @@ int main(){
                 }
             }
         }
-    }
+    }*/
+    //Version 3
+    
+    for (int i=0; i<a.size(); i++){
+        current_sum += a[i];
+        n++;
+        if (i==0){
+            starting_index = i;
+            max_start_index = i;
+        }
+        if (current_sum > max){
+            max = current_sum;
+            n_max = n;
+            max_start_index = starting_index;
+        }
+        if (current_sum <= 0){
+            current_sum = 0;
+            n=0;
+            starting_index = i+1;
+        }
+    } 
     /*Given the fact that once you have the segment with the maximum sum, 
     you can't expand it anymore, and that every subsegment of that segment will have a >0 sum
     (because if it had a negative sum, you could remove it and get a bigger sum),
@@ -87,6 +111,6 @@ int main(){
     Basically you start from the beginning of the array, and keep adding elements to the current sum (keeping track of the max). 
     If the current sum becomes negative, you reset it to 0 and start a new segment from the next element.
     */
-    cout << "Maximum sum of " << n_max << " consecutive elements, starting at index " << starting_index << ": " << max << endl;
+    cout << "Maximum sum of " << n_max << " consecutive elements, starting at index " << max_start_index << ": " << max << endl;
     return 0;
 }
