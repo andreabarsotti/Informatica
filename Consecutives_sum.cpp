@@ -1,8 +1,10 @@
 #include <iostream>
 #include <vector>
 #include <cstdlib> // for rand() function
-#include <ctime> // for seeding rand() with time
-
+#include <random>
+#include <chrono> // to measure 
+using namespace std;
+using namespace std::chrono;
 
 /* --WHAT IT DOES--
 This code creates a random array of 10 elements between -50 and 49, 
@@ -17,16 +19,24 @@ So you start from the beginning of the array and keep adding elements to the cur
 If the current sum becomes negative, you reset it to 0 and start a new segment from the next element
 */
 
-using namespace std;
+int random_gen(int a, int b){
+    static random_device rd;
+    static mt19937 gen(rd());
+    uniform_int_distribution<int> dist(a,b);
+    
+    return dist(gen);
+}
 
 int main(){
     //creates the array
-    srand(time(0)); // seed the random number generator
-    vector<int> a(10);
+    int aa = -100;
+    int bb = 100;
+    int size = 10;
+    vector<int> a(size);
     for (int i = 0; i < a.size(); i++){
-        a[i] = rand() % 100 - 50; // random number between -50 and 49
+        a[i] = random_gen(aa,bb);
     }
-
+    
     //prints the starting array
     cout << "Starting array: " << endl;
     for (int i = 0; i < a.size(); i++) {
@@ -42,6 +52,8 @@ int main(){
     int starting_index; //starting index of the current segment
     int max_start_index; //starting index of the maximum segment
     
+    auto start = high_resolution_clock::now(); //starts the chronometer
+
     for (int i=0; i<a.size(); i++){ //iterates through the array
 
         //adds the next element
@@ -69,6 +81,10 @@ int main(){
         }
     } 
 
+    auto stop = high_resolution_clock::now(); //stops the chronometer
+    auto durata = duration_cast<microseconds>(stop - start); //that's the duration baby
+
     cout << "Maximum sum of " << n_max << " consecutive elements, starting at index " << max_start_index << ": " << max << endl;
+    cout << "Time of computation: " << durata.count() << endl;
     return 0;
 }
