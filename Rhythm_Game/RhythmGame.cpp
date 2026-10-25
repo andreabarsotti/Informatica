@@ -40,24 +40,29 @@ void PrintGrid (const vector<vector<char>>& grid){ //prints the grid with the ti
 
     for (int r = 0; r < ROWS; ++r) {
         for (int c = 0; c < COLS; ++c) {
-            cout << grid[r][c];
+            cout << grid[r][c] << " ";
         }
         cout << '\n';
     }
+    cout << endl << endl;
+    cout << "A S D F " << endl;
 }
 
 
 // -- Game Logic ---------------------------------------------------------------------------------
 
 bool AdvanceTick (Tile &tiles){ //advances the tiles and checks for buttons pressed
-    tiles.pos++;
-    if ((tiles.pos==16 && !tiles.touched) || (tiles.pos!=15 && tiles.touched)){
+    
+    if (tiles.pos!=15 && tiles.touched){ //hit too soon
         cout << "You lost :(" << endl;
         return false;
     }
-    else {
-        return true;
+    tiles.pos++;
+    if (tiles.pos==15 && !tiles.touched){ //missed it
+        cout << "You lost :(" << endl;
+        return false;
     }
+    return true;
 }
 
 
@@ -72,7 +77,7 @@ int main(){
         placeTile(grid, tile1);
         PrintGrid(grid);
         keepup = AdvanceTick(tile1);
-        this_thread::sleep_for(chrono::milliseconds(120));
+        this_thread::sleep_for(chrono::milliseconds(220));
     }
     return 0;
 }
