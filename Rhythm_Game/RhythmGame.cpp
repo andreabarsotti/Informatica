@@ -10,7 +10,7 @@
 
 using namespace std;
 
-// -- Creating the grid dimensions and the tile struct ---------------------------------------------
+// -- Creating the tile struct and setting gri dimensions ---------------------------------------------
 
 constexpr int ROWS = 15;
 constexpr int COLS = 4;
@@ -18,7 +18,7 @@ constexpr int COLS = 4;
 struct Tile {
     int col; //column of the tile: it ranges from 1 to 4, keys ASDF
     int pos = 0; //vertical position of the tile
-    bool successHit = false; //if the Tile has been touched or not
+    bool solved = false; //checks if the Tile has been successfully hit or not (if true, the Tile must be removed)
 };
 
 
@@ -60,11 +60,11 @@ void PrintGrid (const vector<vector<char>>& grid){ //prints the grid with the ti
 termios originalTermios; //stores terminal's settings
 
 void initializeInput(){ //function that enables inputs that don't block the game flow, require no Enter and don't show up in the terminal
-    tcgetattr(STDIN_FILENO, &originalTermios);
+    tcgetattr(STDIN_FILENO, &originalTermios); //actually storing terminal's settings
 
-    termios raw = originalTermios;
+    termios raw = originalTermios; //creating a copy of the settings
 
-    raw.c_lflag &= ~(ICANON | ECHO);
+    raw.c_lflag &= ~(ICANON | ECHO); //setting no need for Enter and no delay
 
     raw.c_cc[VMIN] = 0;
     raw.c_cc[VTIME] = 0;
@@ -87,11 +87,11 @@ int keyboardInput(){ //function that checks if there is a user input
     int ready = poll(&fds, 1, 0);
 
     if (ready <= 0) {
-        return -1;
+        return -1; //no input
     }
 
     if (!(fds.revents & POLLIN)) {
-        return -1;
+        return -1; //no input
     }
 
     //reads the input
@@ -99,10 +99,10 @@ int keyboardInput(){ //function that checks if there is a user input
     ssize_t bytesRead = read(STDIN_FILENO, &key, 1);
 
     if (bytesRead != 1) {
-        return -1;
+        return -1; //no input
     }
 
-    return static_cast<unsigned char>(key);
+    return static_cast<unsigned char>(key); //key holds the user input
 }
 
 
@@ -116,7 +116,7 @@ int keyboardToIndex (char inp){ //converts the keyboard input to the column inde
 
 // -- Handling the input ------------------------------------------------------------------
 
-enum outcomes{ //possible outcomes of the user input (when there's an actual input)
+enum outcomes{ //possible outcomes of the user input
     Hit = 0, //the righy key was pressed when a tile was on the target row
     NoInput = 1, //no ASDF key pressed
     Misclick = 2, //wrong ASDF key while tile on target row
@@ -142,11 +142,11 @@ outcomes handleInput (Tile &tiles, int &presscol){//checks if you pressed a butt
 
 bool AdvanceTick (Tile &tiles, outcomes judge){ //advances the tiles and checks for buttons pressed
     if (judge == Hit){ //hit correctly
-        cout << "You Won :)" << endl;
-        return false; //it has to return true and not say you won once I'll have more tiles: it should remove the tile/mark it has solved
+        tiles.solved = true;
+        return true;
     }
     tiles.pos++;
-    if (tiles.pos>ROWS){ //missed it
+    if (tiles.pos>ROWS && !tiles.solved){ //missed it
         cout << "You lost :(" << endl;
         return false;
     }
@@ -164,6 +164,7 @@ int main(){
     int keybInput;
     char keybCol;
     enum outcomes judgement; //checks what the player did
+    int multiple = 0; //first version for multiple tiles: used only for recreating the same tile over and over
 
     initializeInput(); //changes terminal settings
 
@@ -186,8 +187,13 @@ int main(){
             cout << "You lost :(" << endl;
             keepup = false;
         }
-        keepup = AdvanceTick(tile1, judgement) and keepup; //is true only if advancetick and judgements say so
-
+        keepup = AdvanceTick(tile1, judgement) && keepup; //is true only if advancetick and judgements say so
+        multiple++; 
+        if (multiple%19==0 && multiple>1){
+            tile1.solved = false;
+            tile1.pos = 0;
+            tile1.col = 0;
+        }
         pressedCol = -1; //resets for next tick
         //tick timing
         this_thread::sleep_for(chrono::milliseconds(220));
