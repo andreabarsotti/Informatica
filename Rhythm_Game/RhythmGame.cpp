@@ -10,15 +10,16 @@
 
 using namespace std;
 
-// -- Creating the tile struct and setting gri dimensions ---------------------------------------------
+// -- Creating the tile struct and setting grid dimensions --------------------------------------------
 
 constexpr int ROWS = 15;
 constexpr int COLS = 4;
 
-struct Tile {
-    int col; //column of the tile: it ranges from 1 to 4, keys ASDF
-    int pos = 0; //vertical position of the tile
-    bool solved = false; //checks if the Tile has been successfully hit or not (if true, the Tile must be removed)
+class Tile {
+    public:
+        int col; //column of the tile: it ranges from 0 to 3, keys ASDF
+        int pos = 0; //default vertical position of the tile
+        bool solved = false; //checks if the Tile has been successfully hit or not (if true, the Tile must be destroyed)
 };
 
 
@@ -51,6 +52,22 @@ void PrintGrid (const vector<vector<char>>& grid){ //prints the grid with the ti
     cout << "A S D F " << endl;
 }
 
+
+// -- Generating Patterns ------------------------------------------------------------------------
+
+Tile SingleTile1(){
+    Tile tile;
+    tile.col = 0;
+    tile.pos = -2;
+    return tile;
+}
+
+Tile SingleTile2(){
+    Tile tile;
+    tile.col = 3;
+    tile.pos = -2;
+    return tile;
+}
 
 // GAME LOGIC ---------------------------------------------------------------------------------
 
@@ -105,8 +122,7 @@ int keyboardInput(){ //function that checks if there is a user input
     return static_cast<unsigned char>(key); //key holds the user input
 }
 
-
-int keyboardToIndex (char inp){ //converts the keyboard input to the column index (a-0, s-1, d-2, f-3)
+int keyboardToIndex (int inp){ //converts the keyboard input to the column index (a-0, s-1, d-2, f-3)
     if (inp == 'a') return 0;
     else if (inp == 's') return 1;
     else if (inp == 'd') return 2;
@@ -123,7 +139,7 @@ enum outcomes{ //possible outcomes of the user input
     EarlyMiss = 3 //ASDF key while no tiles on target rows
 };
 
-outcomes handleInput (Tile &tiles, int &presscol){//checks if you pressed a button corresponding to the right column when the tile is on the target row
+outcomes handleInput (Tile &tiles, int &presscol){ //checks if you pressed a button corresponding to the right column when the tile is on the target row
     if (presscol == -1) {
         return NoInput;
     }
@@ -140,7 +156,7 @@ outcomes handleInput (Tile &tiles, int &presscol){//checks if you pressed a butt
 
 // -- Making the game flow ------------------------------------------------------------
 
-bool AdvanceTick (Tile &tiles, outcomes judge){ //advances the tiles and checks for buttons pressed
+bool AdvanceTick (Tile &tiles, outcomes judge){
     if (judge == Hit){ //hit correctly
         tiles.solved = true;
         return true;
@@ -157,16 +173,17 @@ bool AdvanceTick (Tile &tiles, outcomes judge){ //advances the tiles and checks 
 // -- Main ----------------------------------------------------------------------------------------
 
 int main(){
-    bool keepup = true; //variabile to check if you lost or you can keep going
+
+    // game running variables
+    bool keepup = true; //checks wether you lost or can keep going
     int pressedCol = -1; //takes the value of the pressed column (1,2,3,4 or -1 if nothing is pressed)
-    Tile tile1;
-    tile1.col = 2;
-    int keybInput;
-    char keybCol;
+    int keybInput; // takes the keyboard input
     enum outcomes judgement; //checks what the player did
     int multiple = 0; //first version for multiple tiles: used only for recreating the same tile over and over
 
     initializeInput(); //changes terminal settings
+
+    Tile tile1 = SingleTile1();
 
     while (keepup){
 
@@ -178,23 +195,31 @@ int main(){
         //user input 
         keybInput = keyboardInput();
         if (keybInput != -1){ //there's an input, so let's read it
-            keybCol = static_cast<char>(tolower(keybInput));
-            pressedCol = keyboardToIndex(keybCol);
+            keybInput = static_cast<char>(tolower(keybInput));
+            pressedCol = keyboardToIndex(keybInput);
         }
+
         //checks and flow
         judgement = handleInput(tile1, pressedCol);
         if (judgement == Misclick || judgement == EarlyMiss){
             cout << "You lost :(" << endl;
             keepup = false;
         }
+        
         keepup = AdvanceTick(tile1, judgement) && keepup; //is true only if advancetick and judgements say so
+
+        if (tile1.solved) tile1.~Tile(); //destroys solved tiles
+
+        //used in the first version of multiple tiles
         multiple++; 
         if (multiple%19==0 && multiple>1){
             tile1.solved = false;
             tile1.pos = 0;
             tile1.col = 0;
         }
+
         pressedCol = -1; //resets for next tick
+
         //tick timing
         this_thread::sleep_for(chrono::milliseconds(220));
     }
