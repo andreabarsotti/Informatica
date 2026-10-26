@@ -2,24 +2,50 @@
 #include <ctime>
 #include <vector>
 #include <cstdlib>
+#include <algorithm>
 #include <thread> 
 #include <chrono>
 #include <termios.h>
 #include <poll.h>
+#include <cctype>
 #include <unistd.h>
 
 using namespace std;
 
-// -- Creating the tile struct and setting grid dimensions --------------------------------------------
+// -- Creating the tile class and setting grid dimensions --------------------------------------------
 
 constexpr int ROWS = 15;
 constexpr int COLS = 4;
+constexpr int TARGET_ROW = ROWS - 1;
 
 class Tile {
     public:
         int col; //column of the tile: it ranges from 0 to 3, keys ASDF
         int pos = 0; //default vertical position of the tile
         bool solved = false; //checks if the Tile has been successfully hit or not (if true, the Tile must be destroyed)
+};
+
+enum outcomes{ //possible outcomes of the user input
+    Hit, //the righy key was pressed when a tile was on the target row
+    NoInput, //no ASDF key pressed
+    Misclick, //wrong ASDF key while tile on target row
+    EarlyMiss //ASDF key while no tiles on target rows
+};
+
+class World { //contains all the tiles present in the game
+    private:
+        vector<Tile> tiles;
+
+    public:
+        void addTiles(const vector<Tile>& newTiles);
+        //void updateAll();
+        void drawAll() const;
+        //bool allSolved() const;
+        Tile* findHittableTile(int pressCol);
+        outcomes judgeInput(int pressCol);
+        bool advanceAllTiles();
+        void removeSolved();
+        bool tick(int pressedCol);
 };
 
 
@@ -52,25 +78,40 @@ void PrintGrid (const vector<vector<char>>& grid){ //prints the grid with the ti
     cout << "A S D F " << endl;
 }
 
+void World::drawAll() const{
+    auto grid = makeEmptyGrid();
+    for (const Tile& tile : tiles){
+        placeTile(grid, tile);
+    }
+    PrintGrid(grid);
+}
 
 // -- Generating Patterns ------------------------------------------------------------------------
 
-Tile SingleTile1(){
+Tile SingleTile(){
     Tile tile;
     tile.col = 0;
     tile.pos = -2;
     return tile;
 }
 
-Tile SingleTile2(){
-    Tile tile;
-    tile.col = 3;
-    tile.pos = -2;
-    return tile;
+vector<Tile> TwoTiles(){
+    vector<Tile> tiles(2);
+    for (int i = 0; i<2; i++){
+        tiles[i].col=i;
+        tiles[i].pos = -1-i;
+    }
+    return tiles;
 }
 
 // GAME LOGIC ---------------------------------------------------------------------------------
 
+// -- Inserting patterns into the World class --------------------------------------------------
+void World::addTiles(const vector<Tile>& newTiles) {
+    for (const Tile& t : newTiles) {
+        tiles.push_back(t);
+    }
+}
 
 // -- Getting the input and converting it to an integer --------------------------------------
 
@@ -130,43 +171,76 @@ int keyboardToIndex (int inp){ //converts the keyboard input to the column index
     else return -1;
 }
 
-// -- Handling the input ------------------------------------------------------------------
-
-enum outcomes{ //possible outcomes of the user input
-    Hit = 0, //the righy key was pressed when a tile was on the target row
-    NoInput = 1, //no ASDF key pressed
-    Misclick = 2, //wrong ASDF key while tile on target row
-    EarlyMiss = 3 //ASDF key while no tiles on target rows
-};
-
-outcomes handleInput (Tile &tiles, int &presscol){ //checks if you pressed a button corresponding to the right column when the tile is on the target row
-    if (presscol == -1) {
-        return NoInput;
-    }
-    else if (presscol == tiles.col && tiles.pos == ROWS){ 
-        return Hit; 
-    }
-    else if (tiles.pos < ROWS){
-        return EarlyMiss;
-    }
-    else {
-        return Misclick;
-    }
-}
-
 // -- Making the game flow ------------------------------------------------------------
 
-bool AdvanceTick (Tile &tiles, outcomes judge){
-    if (judge == Hit){ //hit correctly
-        tiles.solved = true;
-        return true;
+
+Tile* World::findHittableTile(int pressCol) {
+    for (Tile& tile : tiles) {
+        if (!tile.solved &&
+            tile.col == pressCol &&
+            tile.pos == TARGET_ROW) {
+            return &tile;
+        }
     }
-    tiles.pos++;
-    if (tiles.pos>ROWS && !tiles.solved){ //missed it
-        cout << "You lost :(" << endl;
-        return false;
+
+    return nullptr;
+}
+
+outcomes World::judgeInput(int pressCol){
+    if (pressCol == -1) {
+        return NoInput;
     }
+
+    Tile* target = findHittableTile(pressCol);
+
+    if (target != nullptr) {
+        target->solved = true;   // mark it now; remove it later
+        return Hit;
+    }
+
+    // A key was pressed, but no hittable tile was in that column.
+    return Misclick;
+}
+
+bool World::advanceAllTiles() {
+    for (Tile& tile : tiles) {
+        if (tile.solved) {
+            continue; // solved tiles are waiting to be erased
+        }
+
+        tile.pos++;
+
+        if (tile.pos >= ROWS) {
+            return false; // a tile passed the bottom: player lost
+        }
+    }
+
     return true;
+}
+
+void World::removeSolved(){
+    erase_if(tiles, [](const Tile& t) {
+        return t.solved;
+    });
+}
+
+bool World::tick(int pressedCol) {
+    // 1. Handle the player's action
+    outcomes result = judgeInput(pressedCol);
+
+    if (result == Misclick || result == EarlyMiss) {
+        return false; // player lost
+    }
+
+    // 2. Move every active tile
+    if (!advanceAllTiles()) {
+        return false; // a tile reached/passed the bottom
+    }
+
+    // 3. Delete tiles that were successfully hit
+    removeSolved();
+
+    return true; // game continues
 }
 
 
@@ -176,53 +250,26 @@ int main(){
 
     // game running variables
     bool keepup = true; //checks wether you lost or can keep going
-    int pressedCol = -1; //takes the value of the pressed column (1,2,3,4 or -1 if nothing is pressed)
-    int keybInput; // takes the keyboard input
-    enum outcomes judgement; //checks what the player did
-    int multiple = 0; //first version for multiple tiles: used only for recreating the same tile over and over
 
     initializeInput(); //changes terminal settings
 
-    Tile tile1 = SingleTile1();
+    World world; //creates the variable that stores all the tiles
+    world.addTiles(TwoTiles());
 
-    while (keepup){
+    while (keepup) {
+    world.drawAll();
 
-        //printing the grid
-        auto grid = makeEmptyGrid();
-        placeTile(grid, tile1);
-        PrintGrid(grid);
+    int key = keyboardInput();
 
-        //user input 
-        keybInput = keyboardInput();
-        if (keybInput != -1){ //there's an input, so let's read it
-            keybInput = static_cast<char>(tolower(keybInput));
-            pressedCol = keyboardToIndex(keybInput);
-        }
-
-        //checks and flow
-        judgement = handleInput(tile1, pressedCol);
-        if (judgement == Misclick || judgement == EarlyMiss){
-            cout << "You lost :(" << endl;
-            keepup = false;
-        }
-        
-        keepup = AdvanceTick(tile1, judgement) && keepup; //is true only if advancetick and judgements say so
-
-        if (tile1.solved) tile1.~Tile(); //destroys solved tiles
-
-        //used in the first version of multiple tiles
-        multiple++; 
-        if (multiple%19==0 && multiple>1){
-            tile1.solved = false;
-            tile1.pos = 0;
-            tile1.col = 0;
-        }
-
-        pressedCol = -1; //resets for next tick
-
-        //tick timing
-        this_thread::sleep_for(chrono::milliseconds(220));
+    int pressedCol = -1;
+    if (key != -1) {
+        pressedCol = keyboardToIndex(tolower(key));
     }
+
+    keepup = world.tick(pressedCol);
+
+    this_thread::sleep_for(chrono::milliseconds(220));
+}
 
     restoreInput(); //restore terminal settings 
 
