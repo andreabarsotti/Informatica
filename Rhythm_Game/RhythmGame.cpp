@@ -96,12 +96,20 @@ vector<Tile> NAME(int j){
     return tiles;
 }
 */
-vector<Tile> TwoTiles(int j){
-    int weight=2;
+vector<Tile> Reggaeton(int j){
+    int weight=5;
+    int col1 = rand()%4;
+    int col2;
+    do{
+        col2 = rand()%4;
+    } while(col2==col1);
+
     vector<Tile> tiles(weight);
     for (int i = 0; i<weight; i++){
-        tiles[i].col=i;
+        if (i%2==0) tiles[i].col=col1;
+        else tiles[i].col=col2;
         tiles[i].pos = -1-i - weight*j;
+        if (i==weight-1) tiles[i].solved=true;
     }
     return tiles;
 }
@@ -122,6 +130,7 @@ vector<Tile> Paradiddle(int j){
     }
     return tiles;
 }
+
 
 
 // GAME LOGIC ---------------------------------------------------------------------------------
@@ -272,21 +281,35 @@ int main(){
 
     bool keepup = true; //checks wether you lost or can keep going
     bool generable = true; //checks if the computer can generate a new pattern
-    int weight = 8; //holds the weight of a pattern generator (how many tiles generate, this is the case for the paradiddle only)
+    int weight; //holds the weight of a pattern generator (how many tiles generate, this is the case for the paradiddle only)
     int tick_track = 0; //checks how many ticks passed from a pattern generation
     int j=0;
     srand(time(NULL));
+
+    //storing all possible pattern generators
+    using FuncPtr = vector<Tile> (*)(int );
+    const vector<FuncPtr> generators = {
+        Reggaeton,
+        Paradiddle
+    };
+    const vector<int> weights = {
+        5,
+        8
+    };
 
     initializeInput(); //changes terminal settings
 
     World world; //creates the variable that stores all the tiles
 
     while (keepup) {
-        if (generable){
+        if (generable){ //generates a pattern
             generable = false;
-            j = 1; //all patterns repeat two times
+            j = rand()%4 + 2;
+            int g = rand()%generators.size();
+            weight = weights[g];
+            const auto gen = generators[g]; //actual generator used
             for (int i=0; i<=j; i++){
-                world.addTiles(Paradiddle(i));
+                world.addTiles(gen(i));
             }
         }
         tick_track++;
