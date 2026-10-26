@@ -12,11 +12,11 @@
 
 using namespace std;
 
-// -- Creating the tile class and setting grid dimensions --------------------------------------------
+// -- Creating the environment and variables -----------------------------------------------------
 
 constexpr int ROWS = 15;
 constexpr int COLS = 4;
-constexpr int TARGET_ROW = ROWS - 1;
+constexpr int TARGET_ROW = ROWS;
 
 class Tile {
     public:
@@ -25,11 +25,10 @@ class Tile {
         bool solved = false; //checks if the Tile has been successfully hit or not (if true, the Tile must be destroyed)
 };
 
-enum outcomes{ //possible outcomes of the user input
+enum outcomes{ 
     Hit, //the righy key was pressed when a tile was on the target row
     NoInput, //no ASDF key pressed
-    Misclick, //wrong ASDF key while tile on target row
-    EarlyMiss //ASDF key while no tiles on target rows
+    Fail //wrong ASDF key while tile on target row, or ASDF key while no tiles on target rows
 };
 
 class World { //contains all the tiles present in the game
@@ -37,15 +36,13 @@ class World { //contains all the tiles present in the game
         vector<Tile> tiles;
 
     public:
-        void addTiles(const vector<Tile>& newTiles);
-        //void updateAll();
-        void drawAll() const;
-        //bool allSolved() const;
-        Tile* findHittableTile(int pressCol);
-        outcomes judgeInput(int pressCol);
-        bool advanceAllTiles();
-        void removeSolved();
-        bool tick(int pressedCol);
+        void addTiles(const vector<Tile>& newTiles); //adds new tiles to the game
+        void drawAll() const; //draws the grid with the tiles
+        Tile* findHittableTile(int pressCol); //returns a pointer to the hitted tile, if there was one 
+        outcomes judgeInput(int pressCol); //checks the outcome of the input
+        bool advanceAllTiles(); //advances the Tiles on the grid: returns wether advancing tiles made the player lose or not
+        void removeSolved(); //eliminates succesfully hit tiles
+        bool tick(int pressedCol); //makes a whole game tick (handling user inputs, advancing tiles, eliminating solved, ...)
 };
 
 
@@ -58,14 +55,14 @@ vector<vector<char>> makeEmptyGrid() { //creates and returns the empty grid
     );
 }
 
-void placeTile(vector<vector<char>>& grid, const Tile& tile) { //adds the tile to the grid
+void placeTile(vector<vector<char>>& grid, const Tile& tile) { //adds one tile to the grid
     if (tile.pos >= 0 && tile.pos < ROWS &&
         tile.col >= 0 && tile.col < COLS) {
         grid[tile.pos][tile.col] = '#';
     }
 }
 
-void PrintGrid (const vector<vector<char>>& grid){ //prints the grid with the tile in it
+void PrintGrid (const vector<vector<char>>& grid){ //prints the grid with the tiles in it
     cout << "\033[H"; //used to clear the terminal
 
     for (int r = 0; r < ROWS; ++r) {
@@ -87,22 +84,45 @@ void World::drawAll() const{
 }
 
 // -- Generating Patterns ------------------------------------------------------------------------
-
-Tile SingleTile(){
-    Tile tile;
-    tile.col = 0;
-    tile.pos = -2;
-    return tile;
-}
-
-vector<Tile> TwoTiles(){
-    vector<Tile> tiles(2);
-    for (int i = 0; i<2; i++){
-        tiles[i].col=i;
-        tiles[i].pos = -1-i;
+//each function takes in input how much times the pattern repeats -1
+/* TEMPLATE:
+vector<Tile> NAME(int j){
+    int weight=...;
+    vector<Tile> tiles(weight);
+    for (int i = 0; i<weight; i++){
+        tiles[i].col=...;
+        tiles[i].pos = -1-i - weight*j;
     }
     return tiles;
 }
+*/
+vector<Tile> TwoTiles(int j){
+    int weight=2;
+    vector<Tile> tiles(weight);
+    for (int i = 0; i<weight; i++){
+        tiles[i].col=i;
+        tiles[i].pos = -1-i - weight*j;
+    }
+    return tiles;
+}
+
+vector<Tile> Paradiddle(int j){
+    int weight=8;
+    int col1 = rand()%4;
+    int col2;
+    do{
+        col2 = rand()%4;
+    } while(col2==col1);
+
+    vector<Tile> tiles(weight);
+    for (int i=0; i<weight; i++){
+        if (i==0 || i==2 || i==3 || i==5) tiles[i].col = col1;
+        else tiles[i].col = col2;
+        tiles[i].pos = -1 -i -weight*j;
+    }
+    return tiles;
+}
+
 
 // GAME LOGIC ---------------------------------------------------------------------------------
 
@@ -171,8 +191,7 @@ int keyboardToIndex (int inp){ //converts the keyboard input to the column index
     else return -1;
 }
 
-// -- Making the game flow ------------------------------------------------------------
-
+// -- Handling the input ------------------------------------------------------------
 
 Tile* World::findHittableTile(int pressCol) {
     for (Tile& tile : tiles) {
@@ -194,15 +213,16 @@ outcomes World::judgeInput(int pressCol){
     Tile* target = findHittableTile(pressCol);
 
     if (target != nullptr) {
-        target->solved = true;   // mark it now; remove it later
+        target->solved = true;   //the tile is solved
         return Hit;
     }
 
-    // A key was pressed, but no hittable tile was in that column.
-    return Misclick;
+    return Fail;
 }
 
-bool World::advanceAllTiles() {
+// -- Running a tick ----------------------------------------------------------------
+
+bool World::advanceAllTiles() { 
     for (Tile& tile : tiles) {
         if (tile.solved) {
             continue; // solved tiles are waiting to be erased
@@ -210,7 +230,7 @@ bool World::advanceAllTiles() {
 
         tile.pos++;
 
-        if (tile.pos >= ROWS) {
+        if (tile.pos > TARGET_ROW) {
             return false; // a tile passed the bottom: player lost
         }
     }
@@ -225,19 +245,21 @@ void World::removeSolved(){
 }
 
 bool World::tick(int pressedCol) {
-    // 1. Handle the player's action
+    //Handles the player's action
     outcomes result = judgeInput(pressedCol);
 
-    if (result == Misclick || result == EarlyMiss) {
+    if (result == Fail) {
+        cout << endl << "You lost :(" << endl;
         return false; // player lost
     }
 
-    // 2. Move every active tile
+    //Moves every active tile
     if (!advanceAllTiles()) {
-        return false; // a tile reached/passed the bottom
+        cout << endl << "You lost :(" << endl;
+        return false; // a tile passed the bottom, so the player lost
     }
 
-    // 3. Delete tiles that were successfully hit
+    //Deletes tiles that were successfully hit
     removeSolved();
 
     return true; // game continues
@@ -248,28 +270,43 @@ bool World::tick(int pressedCol) {
 
 int main(){
 
-    // game running variables
     bool keepup = true; //checks wether you lost or can keep going
+    bool generable = true; //checks if the computer can generate a new pattern
+    int weight = 8; //holds the weight of a pattern generator (how many tiles generate, this is the case for the paradiddle only)
+    int tick_track = 0; //checks how many ticks passed from a pattern generation
+    int j=0;
+    srand(time(NULL));
 
     initializeInput(); //changes terminal settings
 
     World world; //creates the variable that stores all the tiles
-    world.addTiles(TwoTiles());
 
     while (keepup) {
-    world.drawAll();
+        if (generable){
+            generable = false;
+            j = 1; //all patterns repeat two times
+            for (int i=0; i<=j; i++){
+                world.addTiles(Paradiddle(i));
+            }
+        }
+        tick_track++;
+        if (tick_track == (j+1)*weight){ 
+            tick_track=0;
+            generable=true;
+        }
+        world.drawAll();
 
-    int key = keyboardInput();
+        int key = keyboardInput();
 
-    int pressedCol = -1;
-    if (key != -1) {
-        pressedCol = keyboardToIndex(tolower(key));
-    }
+        int pressedCol = -1;
+        if (key != -1) {
+            pressedCol = keyboardToIndex(tolower(key));
+        }
 
-    keepup = world.tick(pressedCol);
+        keepup = world.tick(pressedCol);
 
-    this_thread::sleep_for(chrono::milliseconds(220));
-}
+        this_thread::sleep_for(chrono::milliseconds(500));
+    }  
 
     restoreInput(); //restore terminal settings 
 
