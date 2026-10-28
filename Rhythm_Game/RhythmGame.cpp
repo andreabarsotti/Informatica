@@ -132,6 +132,40 @@ vector<Tile> Paradiddle(int j){
 }
 
 
+vector<Tile> Gallop(int j){
+    int weight = 12;
+    int col1 = rand()%2;
+    int col2 = col1+1;
+    int col3 = col2+1;
+
+    vector<Tile> tiles(weight);
+    for (int i=0; i<weight; i++){
+        if (i==0 || i==4 || i==8) tiles[i].col = col1;
+        else if(i==1 || i==5 || i==9) tiles[i].col = col2;
+        else if(i==2 || i==6 || i==10) tiles[i].col = col3;
+        else if(i==3 || i==7 || i==11) tiles[i].solved = true;
+        tiles[i].pos = -1 -i -weight*j;
+    }
+    return tiles;
+}
+
+vector<Tile> TripleStrokeRoll(int j){
+    int weight=12;
+    int col1 = rand()%4;
+    int col2;
+    do{
+        col2 = rand()%4;
+    } while(col2==col1);
+
+    vector<Tile> tiles(weight);
+    for (int i=0; i<weight; i++){
+        if (i<3 || (i>5 && i<9)) tiles[i].col = col1;
+        else tiles[i].col = col2;
+        tiles[i].pos = -1 -i -weight*j;
+    }
+    return tiles;
+}
+
 
 // GAME LOGIC ---------------------------------------------------------------------------------
 
@@ -290,11 +324,15 @@ int main(){
     using FuncPtr = vector<Tile> (*)(int );
     const vector<FuncPtr> generators = {
         Reggaeton,
-        Paradiddle
+        Paradiddle,
+        Gallop,
+        TripleStrokeRoll
     };
     const vector<int> weights = {
         5,
-        8
+        8,
+        12,
+        12
     };
 
     initializeInput(); //changes terminal settings
@@ -328,7 +366,7 @@ int main(){
 
         keepup = world.tick(pressedCol);
 
-        this_thread::sleep_for(chrono::milliseconds(500));
+        this_thread::sleep_for(chrono::milliseconds(250));
     }  
 
     restoreInput(); //restore terminal settings 
