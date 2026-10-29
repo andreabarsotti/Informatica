@@ -1,0 +1,6 @@
+# SwagSort
+
+Questo è il sort usato di solito dai linguaggi di programmazione.\
+Funziona unendo il quicksort random all'insertionsort, in questo modo:\
+Invece di definire il caso base del quicksort (cioè il caso in cui si ferma la ricorsione) come il caso in cui la lunghezza del segmento è 1 o meno di 1 (cioè hai un solo elemento nel segmento, che è già ordinato), si definisce come il caso in cui la lunghezza del segmento è <=L, con L intero. Questo crea un array che è localmente disordinato ma globalmente ordinato, con segmenti alternati da pivot già nella posizione corretta.
+A questo punto si può chiamare l'insertionsort su tutto l'array (stacce, è uguale a chiamarlo sui singoli segmenti ma così è più elegante), che sarà veloce dovendo lavorare poco: la complessità dell'insertion sort è O(nL), e a questo punto conviene scegliere L=logn in modo da avere un algoritmo complessivo a complessità O(nlogn), che come ordine di grandezza è uguale al quicksort random ma nella pratica è più efficiente
