@@ -36,6 +36,8 @@ class World { //contains all the tiles present in the game
         vector<Tile> tiles;
 
     public:
+        int score = 0; //number of solved tiles
+        int lives=3;
         void addTiles(const vector<Tile>& newTiles); //adds new tiles to the game
         void drawAll() const; //draws the grid with the tiles
         Tile* findHittableTile(int pressCol); //returns a pointer to the hitted tile, if there was one 
@@ -62,9 +64,9 @@ void placeTile(vector<vector<char>>& grid, const Tile& tile) { //adds one tile t
     }
 }
 
-void PrintGrid (const vector<vector<char>>& grid){ //prints the grid with the tiles in it
+void PrintGrid (const vector<vector<char>>& grid, int lives){ //prints the grid with the tiles in it
     cout << "\033[H"; //used to clear the terminal
-
+    cout << "Lives: " << lives << endl;
     for (int r = 0; r < ROWS; ++r) {
         for (int c = 0; c < COLS; ++c) {
             cout << grid[r][c] << " ";
@@ -80,7 +82,7 @@ void World::drawAll() const{
     for (const Tile& tile : tiles){
         placeTile(grid, tile);
     }
-    PrintGrid(grid);
+    PrintGrid(grid, lives);
 }
 
 // -- Generating Patterns ------------------------------------------------------------------------
@@ -274,7 +276,7 @@ bool World::advanceAllTiles() {
         tile.pos++;
 
         if (tile.pos > TARGET_ROW) {
-            return false; // a tile passed the bottom: player lost
+            return false; // a tile passed the bottom: player lost a life
         }
     }
 
@@ -282,7 +284,7 @@ bool World::advanceAllTiles() {
 }
 
 void World::removeSolved(){
-    erase_if(tiles, [](const Tile& t) {
+    score += erase_if(tiles, [](const Tile& t) {
         return t.solved;
     });
 }
@@ -292,14 +294,20 @@ bool World::tick(int pressedCol) {
     outcomes result = judgeInput(pressedCol);
 
     if (result == Fail) {
-        cout << endl << "You lost :(" << endl;
-        return false; // player lost
+        lives--;
+            if (lives==0){
+                cout << endl << "You lost :(" << endl << "Score: " << score;
+                return false; // player lost
+            }
     }
 
     //Moves every active tile
     if (!advanceAllTiles()) {
-        cout << endl << "You lost :(" << endl;
-        return false; // a tile passed the bottom, so the player lost
+        lives--;
+            if (lives==0){
+                cout << endl << "You lost :(" << endl << "Score: " << score;
+                return false; // a tile passed the bottom, so the player lost
+            }
     }
 
     //Deletes tiles that were successfully hit
@@ -317,7 +325,8 @@ int main(){
     bool generable = true; //checks if the computer can generate a new pattern
     int weight; //holds the weight of a pattern generator (how many tiles generate, this is the case for the paradiddle only)
     int tick_track = 0; //checks how many ticks passed from a pattern generation
-    int j=0;
+    int j=0; //determines how many time each pattern gets repeated
+    int speed = 400; //time between each tick in milliseconds
     srand(time(NULL));
 
     //storing all possible pattern generators
@@ -365,8 +374,11 @@ int main(){
         }
 
         keepup = world.tick(pressedCol);
-
-        this_thread::sleep_for(chrono::milliseconds(250));
+        //refine this: I wouldn't like for it to grow mid pattern
+        if (speed >= 100){
+            speed -= world.score;
+        }
+        this_thread::sleep_for(chrono::milliseconds(speed));
     }  
 
     restoreInput(); //restore terminal settings 
