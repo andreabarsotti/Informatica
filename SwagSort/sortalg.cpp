@@ -95,7 +95,7 @@ int Distribuzione(vector<int>& A, int sx, int px, int dx) {
 
 
 void QuickSortRandom(vector<int>& A, int sx, int dx, int L) {
-    if (dx-sx <= L) {
+    if (dx-sx >= L) {
         int pivot = random(sx, dx); 
         // cout << "---> sx = " << sx << " dx = " << dx << "valore pivot = " << A[pivot] << endl;
         // cout << "prima: ";
