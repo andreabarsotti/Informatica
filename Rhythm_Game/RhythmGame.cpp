@@ -16,13 +16,16 @@ using namespace std;
 
 constexpr int ROWS = 15;
 constexpr int COLS = 4;
-constexpr int TARGET_ROW = ROWS;
+constexpr int TARGET_ROW = ROWS-1;
+constexpr int TARGET_ROW_2 = TARGET_ROW+1;
 
 class Tile {
     public:
         int col; //column of the tile: it ranges from 0 to 3, keys ASDF
         int pos = 0; //default vertical position of the tile
         bool solved = false; //checks if the Tile has been successfully hit or not (if true, the Tile must be destroyed)
+        bool empty = false; //if true, the tile is just an empty space used to make more patterns
+        bool counted = false; //checks if you already counted this tile as a mistake
 };
 
 enum outcomes{ 
@@ -60,21 +63,30 @@ vector<vector<char>> makeEmptyGrid() { //creates and returns the empty grid
 void placeTile(vector<vector<char>>& grid, const Tile& tile) { //adds one tile to the grid
     if (tile.pos >= 0 && tile.pos < ROWS &&
         tile.col >= 0 && tile.col < COLS) {
-        grid[tile.pos][tile.col] = '#';
+        if (tile.empty){
+            grid[tile.pos][tile.col] = '.';
+        }
+        else{
+            grid[tile.pos][tile.col] = '#';
+        }
     }
 }
 
-void PrintGrid (const vector<vector<char>>& grid, int lives){ //prints the grid with the tiles in it
-    cout << "\033[H"; //used to clear the terminal
-    cout << "Lives: " << lives << endl;
+void PrintGrid(const vector<vector<char>>& grid, int lives) {
+    cout << "\033[H"; // move cursor to top-left
+    cout << "\033[K\n";
+    cout << "Lives: " << lives << "\033[K\n";
+
     for (int r = 0; r < ROWS; ++r) {
         for (int c = 0; c < COLS; ++c) {
-            cout << grid[r][c] << " ";
+            cout << grid[r][c] << ' ';
         }
-        cout << '\n';
+        cout << "\033[K\n";
     }
-    cout << endl << endl;
-    cout << "A S D F " << endl;
+
+    
+    cout << "\033[K\n";
+    cout << "A S D F\033[K\n" << flush;
 }
 
 void World::drawAll() const{
@@ -111,7 +123,7 @@ vector<Tile> Reggaeton(int j){
         if (i%2==0) tiles[i].col=col1;
         else tiles[i].col=col2;
         tiles[i].pos = -1-i - weight*j;
-        if (i==weight-1) tiles[i].solved=true;
+        if (i==weight-1) tiles[i].empty=true;
     }
     return tiles;
 }
@@ -145,7 +157,7 @@ vector<Tile> Gallop(int j){
         if (i==0 || i==4 || i==8) tiles[i].col = col1;
         else if(i==1 || i==5 || i==9) tiles[i].col = col2;
         else if(i==2 || i==6 || i==10) tiles[i].col = col3;
-        else if(i==3 || i==7 || i==11) tiles[i].solved = true;
+        else if(i==3 || i==7 || i==11) tiles[i].empty = true;
         tiles[i].pos = -1 -i -weight*j;
     }
     return tiles;
@@ -240,9 +252,9 @@ int keyboardToIndex (int inp){ //converts the keyboard input to the column index
 
 Tile* World::findHittableTile(int pressCol) {
     for (Tile& tile : tiles) {
-        if (!tile.solved &&
+        if (!tile.empty && !tile.solved &&
             tile.col == pressCol &&
-            tile.pos == TARGET_ROW) {
+            (tile.pos == TARGET_ROW || tile.pos == TARGET_ROW_2)) {
             return &tile;
         }
     }
@@ -262,20 +274,23 @@ outcomes World::judgeInput(int pressCol){
         return Hit;
     }
 
-    return Fail;
+    lives--;
+    return Fail;    
 }
 
 // -- Running a tick ----------------------------------------------------------------
 
 bool World::advanceAllTiles() { 
     for (Tile& tile : tiles) {
-        if (tile.solved) {
+        if (tile.solved || tile.empty) {
             continue; // solved tiles are waiting to be erased
         }
 
         tile.pos++;
 
-        if (tile.pos > TARGET_ROW) {
+        if (tile.pos > TARGET_ROW_2 && tile.counted == false) {
+            tile.counted = true;
+            lives--;
             return false; // a tile passed the bottom: player lost a life
         }
     }
@@ -293,26 +308,17 @@ bool World::tick(int pressedCol) {
     //Handles the player's action
     outcomes result = judgeInput(pressedCol);
 
-    if (result == Fail) {
-        lives--;
-            if (lives==0){
-                cout << endl << "You lost :(" << endl << "Score: " << score;
-                return false; // player lost
-            }
-    }
-
     //Moves every active tile
-    if (!advanceAllTiles()) {
-        lives--;
-            if (lives==0){
-                cout << endl << "You lost :(" << endl << "Score: " << score;
-                return false; // a tile passed the bottom, so the player lost
-            }
-    }
-
+    advanceAllTiles();
+    
     //Deletes tiles that were successfully hit
     removeSolved();
 
+    if (lives<=0){
+        cout << endl << "You lost :(" << endl << "Score: " << score;
+        return false;
+    }
+    
     return true; // game continues
 }
 
@@ -372,6 +378,7 @@ int main(){
         if (key != -1) {
             pressedCol = keyboardToIndex(tolower(key));
         }
+
 
         keepup = world.tick(pressedCol);
         //refine this: I wouldn't like for it to grow mid pattern
