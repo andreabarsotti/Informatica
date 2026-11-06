@@ -75,11 +75,20 @@ void placeTile(vector<vector<char>>& grid, const Tile& tile) { //adds one tile t
 void PrintGrid(const vector<vector<char>>& grid, int lives) {
     cout << "\033[H"; // move cursor to top-left
     cout << "\033[K\n";
-    cout << "Lives: " << lives << "\033[K\n";
-
+    for (int i=0; i<lives; i++){
+        cout << "\033[31m\xE2\x99\xA5" << " "; //red hearts
+    }
+    cout << "\033[K\n";
+    cout << "\033[0m"; //resets to white
     for (int r = 0; r < ROWS; ++r) {
         for (int c = 0; c < COLS; ++c) {
-            cout << grid[r][c] << ' ';
+            if (r==TARGET_ROW || r==TARGET_ROW_2){
+                cout << "\033[31m" << grid[r][c] << ' ';
+                cout << "\033[0m";
+            }
+            else{
+                cout << grid[r][c] << ' ';
+            }
         }
         cout << "\033[K\n";
     }
@@ -387,7 +396,7 @@ int main(){
         }
         this_thread::sleep_for(chrono::milliseconds(speed));
     }  
-
+    world.drawAll();
     restoreInput(); //restore terminal settings 
 
     return 0;
