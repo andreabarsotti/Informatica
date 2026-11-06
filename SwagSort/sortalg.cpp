@@ -10,7 +10,6 @@
 #include <chrono>
 
 using namespace std;
-
 /* UTILITY */
 
 int random(int a, int b){ // restituisce un numero random in [a..b]

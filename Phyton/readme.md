@@ -1,0 +1,1 @@
+This particular folder is used for all the python codes, mainly used in numerical analysis. I will mostly use jupyter notebook instead of simple python files, to explain the project better 
